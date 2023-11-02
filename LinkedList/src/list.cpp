@@ -42,8 +42,8 @@ Error_t list_ctor(LinkedList * lst)
 
     for (size_t i = 1; i < START_CAPACITY; i++)
     {
-        lst->next[i] = i + 1;
-        lst->prev[i] = i - 1;
+        lst->next[i] = i % (START_CAPACITY - 1) + 1;
+        lst->prev[i] = (START_CAPACITY - 1) - (START_CAPACITY - i) % (START_CAPACITY - 1);
     }
 
     return errors;
@@ -121,6 +121,107 @@ void list_dump_internal(LinkedList * lst, Error_t errors,
     MY_ASSERT(lst_name);
     MY_ASSERT(func);
     MY_ASSERT(file);
+
+    #if 0
+     GraphViz ebaniy ;(
+    #endif
+}
+
+
+Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val)
+{
+    MY_ASSERT(lst);
+
+    Error_t errors = 0;
+
+    if (errors = list_vtor(lst))
+    {
+        return errors;
+    }
+
+    #if 0
+        Proverka na ne freeshniy elem_id
+    #endif
+
+    size_t new_val_id = lst->free;
+    size_t past_elem_next = lst->next[elem_id];
+
+    lst->free = lst->next[lst->free];
+    lst->data[new_val_id] = val;
+
+    lst->next[elem_id] = new_val_id;
+    lst->next[new_val_id] = past_elem_next;
+
+    lst->prev[past_elem_next] = new_val_id;
+    lst->prev[new_val_id] = elem_id;
+
+    set_list_head(lst, lst->next[DUMMY_NODE_ID]);
+    set_list_tail(lst, lst->prev[DUMMY_NODE_ID]);
+
+    return errors;
+}
+
+
+Error_t list_delete(LinkedList * lst, size_t elem_id)
+{
+    MY_ASSERT(lst);
+
+    Error_t errors = 0;
+
+    if (errors = list_vtor(lst))
+    {
+        return errors;
+    }
+
+    #if 0
+        Proverka na ne freeshniy elem_id
+    #endif
+
+    size_t past_free_prev = lst->prev[lst->free];
+    size_t past_free = lst->free;
+
+    lst->data[elem_id] = TRASH_VALUE;
+    lst->free = elem_id;
+
+    lst->next[elem_id] = past_free;
+    lst->next[past_free_prev] = elem_id;
+
+    lst->prev[elem_id] = past_free_prev;
+    lst->prev[past_free] = elem_id;
+
+    set_list_head(lst, lst->next[DUMMY_NODE_ID]);
+    set_list_tail(lst, lst->prev[DUMMY_NODE_ID]);
+
+    return errors;
+}
+
+
+Error_t try_to_find_in_this_linked_list_this_given_value_using_keyboard_mouse_your_hands_brain_and_eyes_also_fingers_may_be(LinkedList * lst,
+                                                                                                                            Elem_t val,
+                                                                                                                            size_t * val_id)
+{
+    MY_ASSERT(lst);
+
+    Error_t errors = 0;
+
+    if (errors = list_vtor(lst))
+    {
+        return errors;
+    }
+
+    for (size_t i = lst->head; lst->next[i] != lst->head; i = lst->next[i])
+    {
+        if (lst->data[i] == val)
+        {
+            *val_id = i;
+
+            return errors;
+        }
+    }
+
+    *val_id = -1;
+
+    return errors;
 }
 
 

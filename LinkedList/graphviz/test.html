@@ -1,0 +1,45 @@
+digraph G
+{
+	graph [dpi = 100];
+
+	ranksep = 1.5;
+
+	splines = ortho
+
+	edge[minlen = 3, penwidth = 3];
+	node[shape = record, style = rounded,
+	 	 fixedsize = true, height = 1, width = 2,
+	 	 fontsize = 30];
+
+	{rank = min;
+		above_node[label = "I'm disappearing", width = 3];
+	}
+	{rank = same;
+	node1[label = "1"];
+	node2[label = "2"];
+	node3[label = "3"];
+	node4[label = "4"];
+	node5[label = "5"];
+	node6[label = "6"];
+	}
+	{rank = max;
+		below_node[label = "Don't look at me", width = 3];
+	}
+
+	above_node -> node1;
+	below_node -> node1;
+
+	node1 -> node2 -> node3 [weight = 5; style = invis];
+	node3 -> node4 -> node5 [weight = 5; style = invis];
+	node5 -> node6 [weight = 5, style = invis];
+
+	node1 -> node3;
+	node5 -> node2;
+	node1 -> node6;
+	node1 -> node4;
+	node3 -> node5;
+
+    node[shape = record, style = invisible, weight = 5];
+}
+
+

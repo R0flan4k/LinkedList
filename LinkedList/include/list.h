@@ -29,9 +29,15 @@
     };
 
     Error_t list_ctor(LinkedList * lst);
-    Error_t list_dtor(LinkedList * lst  );
+    Error_t list_dtor(LinkedList * lst);
     Error_t list_vtor(LinkedList * lst);
     void list_dump_internal(LinkedList * lst, Error_t errors,
                             char * lst_name, const char * func,
                             const int line, const char * file);
+    Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val);
+    Error_t list_delete(LinkedList * lst, size_t elem_id);
+    Error_t try_to_find_in_this_linked_list_this_given_value_using_keyboard_mouse_your_hands_brain_and_eyes_also_fingers_may_be(LinkedList * lst,
+                                                                                                                                Elem_t val,
+                                                                                                                                size_t * val_id);
+
 #endif // LIST_H
