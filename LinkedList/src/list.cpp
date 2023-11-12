@@ -3,15 +3,18 @@
 
 #include "list.h"
 #include "my_assert.h"
+#include "file_processing.h"
+
+const char * LIST_DUMP_FILE_NAME = "./graphviz/list_dump.dot";
 
 const size_t START_CAPACITY = 16;
 const size_t DUMMY_NODE_ID = 0;
-const long TRASH_VALUE = 0x5051AB1BA5;
-void * TRASH_POINTER = nullptr;
+const size_t TRASH_VALUE = 0xAB1BA5;
+const size_t OUTPUT_BUFFER_SIZE = 512;
 
-Error_t set_list_head(LinkedList * lst, size_t new_head_id);
-Error_t set_list_tail(LinkedList * lst, size_t new_tail_id);
-Error_t list_reference_arrays_vtor(LinkedList * lst);
+static Error_t set_list_head(LinkedList * lst, size_t new_head_id);
+static Error_t set_list_tail(LinkedList * lst, size_t new_tail_id);
+static Error_t list_reference_arrays_vtor(LinkedList * lst);
 
 
 Error_t list_ctor(LinkedList * lst)
@@ -43,7 +46,7 @@ Error_t list_ctor(LinkedList * lst)
     for (size_t i = 1; i < START_CAPACITY; i++)
     {
         lst->next[i] = i % (START_CAPACITY - 1) + 1;
-        lst->prev[i] = (START_CAPACITY - 1) - (START_CAPACITY - i) % (START_CAPACITY - 1);
+        lst->prev[i] = -1;
     }
 
     return errors;
@@ -56,8 +59,8 @@ Error_t list_dtor(LinkedList * lst)
 
     Error_t errors = 0;
 
-    if (lst->data == TRASH_POINTER && lst->next == TRASH_POINTER &&
-        lst->prev == TRASH_POINTER && lst->capacity == TRASH_VALUE &&
+    if (lst->data == NULL && lst->next == NULL &&
+        lst->prev == NULL && lst->capacity == TRASH_VALUE &&
         lst->head == TRASH_VALUE   && lst->tail == TRASH_VALUE &&
         lst->free == TRASH_VALUE)
     {
@@ -74,9 +77,9 @@ Error_t list_dtor(LinkedList * lst)
     free(lst->next);
     free(lst->prev);
 
-    lst->data = (Elem_t *) TRASH_POINTER;
-    lst->next = (size_t *) TRASH_POINTER;
-    lst->prev = (size_t *) TRASH_POINTER;
+    lst->data = (Elem_t *) NULL;
+    lst->next = (size_t *) NULL;
+    lst->prev = (size_t *) NULL;
 
     lst->capacity = TRASH_VALUE;
     lst->head     = TRASH_VALUE;
@@ -95,11 +98,11 @@ Error_t list_vtor(LinkedList * lst)
 
     if (lst->capacity <= 0)
         errors |= LIST_ERROR_INVALID_CAPACITY;
-    if (lst->head < 0 || lst->head >= lst->capacity)
+    if (lst->head >= lst->capacity)
         errors |= LIST_ERROR_INVALID_HEAD;
-    if (lst->tail < 0 || lst->tail >= lst->capacity)
+    if (lst->tail >= lst->capacity)
         errors |= LIST_ERROR_INVALID_TAIL;
-    if (lst->free < 0 || lst->free >= lst->capacity)
+    if (lst->free >= lst->capacity)
         errors |= LIST_ERROR_INVALID_FREE;
 
     if (!lst->data)
@@ -122,9 +125,29 @@ void list_dump_internal(LinkedList * lst, Error_t errors,
     MY_ASSERT(func);
     MY_ASSERT(file);
 
-    #if 0
-     GraphViz ebaniy ;(
-    #endif
+    FILE * fp = NULL;
+    if (!(fp = file_open(LIST_DUMP_FILE_NAME, "wb")))
+    {
+        return;
+    }
+
+    fprintf(fp, "digraph G\n");
+    fprintf(fp, "{\n");
+    fprintf(fp, "\tgraph [dpi = 100]\n");
+    fprintf(fp, "\tranksep = 0.5;\n");
+    fprintf(fp, "\tbgcolor = \"#c1f1f5\"\n");
+    fprintf(fp, "\tsplines = ortho\n");
+    fprintf(fp, "\tedge[minlen = 3];\n");
+    fprintf(fp, "\tnode[shape = record, style = \"rounded\", color = \"#f58eb4\",\n");
+    fprintf(fp, "\t	 fixedsize = true, height = 1, width = 2, fontsize = 15];\n");
+    fprintf(fp, "\t{rank = same;\n");
+
+    // for (size_t i = 0; i < lst->capacity; i++)
+    // {
+    /*     fprintf(fp, "\t\telem[%zd] [label = \"{id = %zd | " \ */
+    //             "{prev = %zd | next = %zd { {\", color = \"%s\" ];\n",
+    //             i, i, lst->prev[i], lst->next[i],////)
+    // }
 }
 
 
@@ -139,14 +162,25 @@ Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val)
         return errors;
     }
 
-    #if 0
-        Proverka na ne freeshniy elem_id
-    #endif
+    if (lst->prev[lst->next[lst->free]] != -1)
+    {
+        printf("The list is full.\nExpand it if you want to insert new element.\n");
+
+        return errors;
+    }
+
+    if (lst->prev[elem_id] == -1)
+    {
+        printf("Can't insert element after free memory location.\n");
+
+        return errors;
+    }
 
     size_t new_val_id = lst->free;
     size_t past_elem_next = lst->next[elem_id];
 
-    lst->free = lst->next[lst->free];
+
+    lst->free = lst->next[new_val_id];
     lst->data[new_val_id] = val;
 
     lst->next[elem_id] = new_val_id;
@@ -173,9 +207,12 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
         return errors;
     }
 
-    #if 0
-        Proverka na ne freeshniy elem_id
-    #endif
+    if (lst->prev[elem_id] == -1)
+    {
+        printf("Can't delete free element.\n");
+
+        return errors;
+    }
 
     size_t past_free_prev = lst->prev[lst->free];
     size_t past_free = lst->free;
@@ -196,11 +233,124 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
 }
 
 
-Error_t try_to_find_in_this_linked_list_this_given_value_using_keyboard_mouse_your_hands_brain_and_eyes_also_fingers_may_be(LinkedList * lst,
-                                                                                                                            Elem_t val,
-                                                                                                                            size_t * val_id)
+Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coefficient)
 {
     MY_ASSERT(lst);
+
+    Error_t errors = 0;
+    Elem_t * pointer1 = NULL;
+    size_t * pointer2 = NULL;
+    size_t * pointer3 = NULL;
+    size_t old_capacity = lst->capacity;
+    size_t new_capacity = 0;
+
+    if (errors = list_vtor(lst))
+    {
+        return errors;
+    }
+
+    if (mode == LIST_RESIZE_EXPAND)
+    {
+        new_capacity = old_capacity * resize_coefficient;
+    }
+    else // mode == LIST_RESIZE_CONSTRICT
+    {
+        new_capacity = old_capacity / resize_coefficient;
+    }
+
+    if (!(pointer1 = (Elem_t *) realloc(lst->data,
+                                        new_capacity)) ||
+        !(pointer2 = (size_t *) realloc(lst->next,
+                                        new_capacity)) ||
+        !(pointer3 = (size_t *) realloc(lst->prev,
+                                        new_capacity)))
+    {
+        errors |= LIST_ERROR_CANT_ALLOCATE_MEMORY;
+        return errors;
+    }
+
+    lst->capacity = new_capacity;
+    lst->data = pointer1;
+    lst->next = pointer2;
+    lst->prev = pointer3;
+
+    if (mode == LIST_RESIZE_EXPAND)
+    {
+        size_t i = 0;
+        if (lst->free != -1)
+        {
+            for (i = lst->free; lst->prev[lst->next[i]] == -1; i = lst->next[i])
+                continue;
+
+            lst->next[i] = new_capacity - old_capacity;
+        }
+        else
+        {
+            lst->free = new_capacity - old_capacity;
+        }
+
+        for (i = new_capacity - old_capacity; i < new_capacity; i++)
+        {
+            lst->next[i] = i % (new_capacity - 1) + 1;
+            lst->prev[i] = -1;
+        }
+    }
+    else // mode == LIST_RESIZE_CONSTRICT
+    {
+        size_t i = 0;
+        size_t last_free = 0;
+
+        #if 0
+            Proverka na free = -1
+        #endif
+
+        for (i = lst->free; lst->prev[i] == -1; i = lst->next[i])
+        {
+            if (i < new_capacity)
+            {
+                lst->free = i;
+                last_free = i;
+                break;
+            }
+        }
+
+        for (i = lst->free; lst->prev[i] == -1; i = lst->next[i])
+        {
+            if (i < new_capacity)
+            {
+                lst->next[last_free] = i;
+                last_free = i;
+            }
+        }
+
+        Elem_t last_elem = lst->head;
+
+        for (i = lst->head; i != lst->tail; i = lst->next[i])
+        {
+            if (i < new_capacity)
+            {
+                lst->next[last_elem] = i;
+                lst->prev[i] = last_elem;
+                last_elem = i;
+            }
+        }
+
+        if (i >= new_capacity)
+        {
+            lst->tail = last_elem;
+        }
+    }
+
+    return errors;
+}
+
+
+Error_t get_elem_actual_index_by_serial_index(LinkedList * lst,
+                                              size_t serial_id,
+                                              int * actual_id)
+{
+    MY_ASSERT(lst);
+    MY_ASSERT(actual_id);
 
     Error_t errors = 0;
 
@@ -209,23 +359,23 @@ Error_t try_to_find_in_this_linked_list_this_given_value_using_keyboard_mouse_yo
         return errors;
     }
 
-    for (size_t i = lst->head; lst->next[i] != lst->head; i = lst->next[i])
+    for (size_t i = lst->next[DUMMY_NODE_ID], j = 0; i != lst->tail; i = lst->next[i], j++)
     {
-        if (lst->data[i] == val)
+        if (j == serial_id)
         {
-            *val_id = i;
+            *actual_id = (int) i;
 
             return errors;
         }
     }
 
-    *val_id = -1;
+    *actual_id = -1;
 
     return errors;
 }
 
 
-Error_t list_reference_arrays_vtor(LinkedList * lst)
+static Error_t list_reference_arrays_vtor(LinkedList * lst)
 {
     MY_ASSERT(lst);
 
@@ -247,13 +397,13 @@ Error_t list_reference_arrays_vtor(LinkedList * lst)
     bool prev_check_necessity = true;
     for (size_t i = 0; i < lst->capacity; i++)
     {
-        if ((lst->next[i] < 0 || lst->next[i] > lst->capacity) &&
+        if ((lst->next[i] > lst->capacity) &&
             next_check_necessity)
         {
             errors |= LIST_ERROR_INVALID_NEXT;
         }
 
-        if ((lst->prev[i] < 0 || lst->prev[i] > lst->capacity) &&
+        if ((lst->prev[i] > lst->capacity) &&
             prev_check_necessity)
         {
             errors |= LIST_ERROR_INVALID_PREV;
@@ -267,15 +417,15 @@ Error_t list_reference_arrays_vtor(LinkedList * lst)
 }
 
 
-Error_t set_list_head(LinkedList * lst, size_t new_head_id)
+static Error_t set_list_head(LinkedList * lst, size_t new_head_id)
 {
     MY_ASSERT(lst);
 
     Error_t errors = 0;
 
-    if (new_head_id < 0 || new_head_id >= lst->capacity)
+    if (new_head_id >= lst->capacity)
     {
-        errors || LIST_ERROR_INVALID_ELEM_ID;
+        errors |= LIST_ERROR_INVALID_ELEM_ID;
         return errors;
     }
 
@@ -286,15 +436,15 @@ Error_t set_list_head(LinkedList * lst, size_t new_head_id)
 }
 
 
-Error_t set_list_tail(LinkedList * lst, size_t new_tail_id)
+static Error_t set_list_tail(LinkedList * lst, size_t new_tail_id)
 {
     MY_ASSERT(lst);
 
     Error_t errors = 0;
 
-    if (new_tail_id < 0 || new_tail_id >= lst->capacity)
+    if (new_tail_id >= lst->capacity)
     {
-        errors || LIST_ERROR_INVALID_ELEM_ID;
+        errors |= LIST_ERROR_INVALID_ELEM_ID;
         return errors;
     }
 

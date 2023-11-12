@@ -1,8 +1,15 @@
 #ifndef LIST_H
     #define LIST_H
 
+    #include <stdio.h>
+
     typedef int Elem_t;
     typedef int Error_t;
+
+    enum ListResizeModes {
+        LIST_RESIZE_EXPAND,
+        LIST_RESIZE_CONSTRICT,
+    };
 
     enum ListErrorsMasks {
         LIST_ERROR_CANT_ALLOCATE_MEMORY = 1 << 0,
@@ -36,8 +43,11 @@
                             const int line, const char * file);
     Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val);
     Error_t list_delete(LinkedList * lst, size_t elem_id);
-    Error_t try_to_find_in_this_linked_list_this_given_value_using_keyboard_mouse_your_hands_brain_and_eyes_also_fingers_may_be(LinkedList * lst,
-                                                                                                                                Elem_t val,
-                                                                                                                                size_t * val_id);
+    Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coefficient);
+    Error_t get_elem_actual_index_by_serial_index(LinkedList * lst,
+                                                  size_t serial_id,
+                                                  int * actual_id);
+
+    extern const char * LIST_DUMP_FILE_NAME;
 
 #endif // LIST_H
