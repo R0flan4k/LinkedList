@@ -6,6 +6,8 @@
     typedef int Elem_t;
     typedef int Error_t;
 
+    #define ELEM_SPEC "%d"
+
     enum ListResizeModes {
         LIST_RESIZE_EXPAND,
         LIST_RESIZE_CONSTRICT,
@@ -28,11 +30,11 @@
     struct LinkedList {
         Elem_t * data;
         size_t * next;
-        size_t * prev;
+        int * prev;
         size_t capacity;
         size_t head;
         size_t tail;
-        size_t free;
+        int free;
     };
 
     Error_t list_ctor(LinkedList * lst);

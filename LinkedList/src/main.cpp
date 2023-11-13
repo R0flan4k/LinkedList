@@ -14,6 +14,26 @@ int main(void)
         return errors;
     }
 
+    if (errors = list_insert(&lst, 0, 13))
+    {
+        return errors;
+    }
+
+    if (errors = list_insert(&lst, 1, 17))
+    {
+        return errors;
+    }
+
+    if (errors = list_insert(&lst, 2, 223))
+    {
+        return errors;
+    }
+
+    if (errors = list_delete(&lst, 2))
+    {
+        return errors;
+    }
+
     if (errors = list_dtor(&lst))
     {
         return errors;

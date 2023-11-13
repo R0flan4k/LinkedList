@@ -31,7 +31,7 @@ Error_t list_ctor(LinkedList * lst)
 
     if (!(lst->data = (Elem_t *) calloc(START_CAPACITY, sizeof(Elem_t))) ||
         !(lst->next = (size_t *) calloc(START_CAPACITY, sizeof(size_t))) ||
-        !(lst->prev = (size_t *) calloc(START_CAPACITY, sizeof(size_t))))
+        !(lst->prev = (int *) calloc(START_CAPACITY, sizeof(size_t))))
     {
         errors |= LIST_ERROR_CANT_ALLOCATE_MEMORY;
         return errors;
@@ -79,7 +79,7 @@ Error_t list_dtor(LinkedList * lst)
 
     lst->data = (Elem_t *) NULL;
     lst->next = (size_t *) NULL;
-    lst->prev = (size_t *) NULL;
+    lst->prev = (int *) NULL;
 
     lst->capacity = TRASH_VALUE;
     lst->head     = TRASH_VALUE;
@@ -96,13 +96,13 @@ Error_t list_vtor(LinkedList * lst)
 
     Error_t errors = 0;
 
-    if (lst->capacity <= 0)
+    if (lst->capacity == 0)
         errors |= LIST_ERROR_INVALID_CAPACITY;
     if (lst->head >= lst->capacity)
         errors |= LIST_ERROR_INVALID_HEAD;
     if (lst->tail >= lst->capacity)
         errors |= LIST_ERROR_INVALID_TAIL;
-    if (lst->free >= lst->capacity)
+    if (lst->free < -1 && lst->free >= (int) lst->capacity)
         errors |= LIST_ERROR_INVALID_FREE;
 
     if (!lst->data)
@@ -238,9 +238,9 @@ Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coeffi
     MY_ASSERT(lst);
 
     Error_t errors = 0;
-    Elem_t * pointer1 = NULL;
-    size_t * pointer2 = NULL;
-    size_t * pointer3 = NULL;
+    Elem_t * data_pointer = NULL;
+    size_t * next_pointer = NULL;
+    int * prev_pointer = NULL;
     size_t old_capacity = lst->capacity;
     size_t new_capacity = 0;
 
@@ -258,11 +258,11 @@ Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coeffi
         new_capacity = old_capacity / resize_coefficient;
     }
 
-    if (!(pointer1 = (Elem_t *) realloc(lst->data,
+    if (!(data_pointer = (Elem_t *) realloc(lst->data,
                                         new_capacity)) ||
-        !(pointer2 = (size_t *) realloc(lst->next,
+        !(next_pointer = (size_t *) realloc(lst->next,
                                         new_capacity)) ||
-        !(pointer3 = (size_t *) realloc(lst->prev,
+        !(prev_pointer = (int *) realloc(lst->prev,
                                         new_capacity)))
     {
         errors |= LIST_ERROR_CANT_ALLOCATE_MEMORY;
@@ -270,9 +270,9 @@ Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coeffi
     }
 
     lst->capacity = new_capacity;
-    lst->data = pointer1;
-    lst->next = pointer2;
-    lst->prev = pointer3;
+    lst->data = data_pointer;
+    lst->next = next_pointer;
+    lst->prev = prev_pointer;
 
     if (mode == LIST_RESIZE_EXPAND)
     {
@@ -401,12 +401,14 @@ static Error_t list_reference_arrays_vtor(LinkedList * lst)
             next_check_necessity)
         {
             errors |= LIST_ERROR_INVALID_NEXT;
+            next_check_necessity = false;
         }
 
-        if ((lst->prev[i] > lst->capacity) &&
+        if ((lst->prev[i] < -1 && lst->prev[i] > (int) lst->capacity) &&
             prev_check_necessity)
         {
             errors |= LIST_ERROR_INVALID_PREV;
+            prev_check_necessity = false;
         }
 
         if (!next_check_necessity && !prev_check_necessity)
