@@ -7,10 +7,12 @@
 
 const char * LIST_DUMP_FILE_NAME = "./graphviz/list_dump.dot";
 
-const size_t START_CAPACITY = 16;
+const size_t START_CAPACITY = 8;
 const size_t DUMMY_NODE_ID = 0;
 const size_t TRASH_VALUE = 0xAB1BA5;
 const size_t OUTPUT_BUFFER_SIZE = 512;
+const char * BLUE_COLOR = "#004bc4";
+const char * GREEN_COLOR = "#0f9900";
 
 static Error_t set_list_head(LinkedList * lst, size_t new_head_id);
 static Error_t set_list_tail(LinkedList * lst, size_t new_tail_id);
@@ -45,6 +47,7 @@ Error_t list_ctor(LinkedList * lst)
 
     for (size_t i = 1; i < START_CAPACITY; i++)
     {
+        lst->data[i] = TRASH_VALUE;
         lst->next[i] = i % (START_CAPACITY - 1) + 1;
         lst->prev[i] = -1;
     }
@@ -116,11 +119,14 @@ Error_t list_vtor(LinkedList * lst)
 }
 
 
-void list_dump_internal(LinkedList * lst, Error_t errors,
-                        char * lst_name, const char * func,
+void list_dump_internal(LinkedList * lst,
+                        const char * lst_name, const char * func,
                         const int line, const char * file)
 {
     MY_ASSERT(lst);
+    MY_ASSERT(lst->data);
+    MY_ASSERT(lst->next);
+    MY_ASSERT(lst->prev);
     MY_ASSERT(lst_name);
     MY_ASSERT(func);
     MY_ASSERT(file);
@@ -135,19 +141,59 @@ void list_dump_internal(LinkedList * lst, Error_t errors,
     fprintf(fp, "{\n");
     fprintf(fp, "\tgraph [dpi = 100]\n");
     fprintf(fp, "\tranksep = 0.5;\n");
-    fprintf(fp, "\tbgcolor = \"#c1f1f5\"\n");
+    fprintf(fp, "\tbgcolor = \"#ffffff\"\n");
     fprintf(fp, "\tsplines = ortho\n");
     fprintf(fp, "\tedge[minlen = 3];\n");
     fprintf(fp, "\tnode[shape = record, style = \"rounded\", color = \"#f58eb4\",\n");
     fprintf(fp, "\t	 fixedsize = true, height = 1, width = 2, fontsize = 15];\n");
     fprintf(fp, "\t{rank = same;\n");
+    fprintf(fp, "\t\telem0 [label = \"{[0] | {prev = %d | next = %zd } }\", color = red];\n",
+            lst->prev[DUMMY_NODE_ID], lst->next[DUMMY_NODE_ID]);
 
-    // for (size_t i = 0; i < lst->capacity; i++)
-    // {
-    /*     fprintf(fp, "\t\telem[%zd] [label = \"{id = %zd | " \ */
-    //             "{prev = %zd | next = %zd { {\", color = \"%s\" ];\n",
-    //             i, i, lst->prev[i], lst->next[i],////)
-    // }
+    for (size_t i = 1; i < lst->capacity; i++)
+    {
+        fprintf(fp, "\t\telem%zd [label = \"{[%zd] ",
+                i, i);
+
+        if (lst->data[i] == TRASH_VALUE)
+        {
+            fprintf(fp, "TRASH");
+        }
+        else
+        {
+            fprintf(fp, "%d", lst->data[i]);
+        }
+
+        fprintf(fp, " | {prev = %d | next = %zd } }\", color = \"%s\" ];\n",
+                lst->prev[i], lst->next[i], lst->prev[i] == -1 ? GREEN_COLOR :BLUE_COLOR);
+    }
+
+    fprintf(fp, "\t}\n");
+    fprintf(fp, "\t{rank = max;\n");
+    fprintf(fp, "\t\tinfo_node [label = \"%s[%p]\\n from %s, %s:%d\\n\\n | { <h> head = %zd | <t> tail = %zd | free = %d}\", width = 3];\n",
+            lst_name, lst, file, func, line, lst->head, lst->tail, lst->free);
+    fprintf(fp, "\t}\n");
+
+    fprintf(fp, "\t");
+    for (size_t i = 0; i < lst->capacity - 1; i++)
+    {
+        fprintf(fp, "elem%zd -> ", i);
+    }
+
+    fprintf(fp, "elem%zd [weight = 5, color = white];\n", lst->capacity - 1);
+
+    fprintf(fp, "\t");
+    for (size_t i = 0; i != lst->tail; i = lst->next[i])
+    {
+        fprintf(fp, "elem%zd -> ", i);
+    }
+
+    fprintf(fp, "elem%zd -> elem%zd [weight = 1, color = red, splines = orthro];\n", lst->tail, DUMMY_NODE_ID);
+    fprintf(fp, "\tinfo_node:<h> -> elem%zd [splines = orthro];\n", lst->head);
+    fprintf(fp, "\tinfo_node:<t> -> elem%zd [splines = orthro];\n", lst->tail);
+    fprintf(fp, "}");
+
+    fclose(fp);
 }
 
 
@@ -214,17 +260,15 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
         return errors;
     }
 
-    size_t past_free_prev = lst->prev[lst->free];
     size_t past_free = lst->free;
 
     lst->data[elem_id] = TRASH_VALUE;
     lst->free = elem_id;
 
+    lst->next[lst->prev[elem_id]] = lst->next[elem_id];
     lst->next[elem_id] = past_free;
-    lst->next[past_free_prev] = elem_id;
 
-    lst->prev[elem_id] = past_free_prev;
-    lst->prev[past_free] = elem_id;
+    lst->prev[elem_id] = -1;
 
     set_list_head(lst, lst->next[DUMMY_NODE_ID]);
     set_list_tail(lst, lst->prev[DUMMY_NODE_ID]);

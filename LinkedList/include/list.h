@@ -6,6 +6,7 @@
     typedef int Elem_t;
     typedef int Error_t;
 
+    #define list_dump(lst) list_dump_internal((lst), #lst, __func__, __LINE__, __FILE__)
     #define ELEM_SPEC "%d"
 
     enum ListResizeModes {
@@ -40,8 +41,8 @@
     Error_t list_ctor(LinkedList * lst);
     Error_t list_dtor(LinkedList * lst);
     Error_t list_vtor(LinkedList * lst);
-    void list_dump_internal(LinkedList * lst, Error_t errors,
-                            char * lst_name, const char * func,
+    void list_dump_internal(LinkedList * lst,
+                            const char * lst_name, const char * func,
                             const int line, const char * file);
     Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val);
     Error_t list_delete(LinkedList * lst, size_t elem_id);
