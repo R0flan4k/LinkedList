@@ -45,6 +45,7 @@
                             const char * lst_name, const char * func,
                             const int line, const char * file);
     Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val);
+    Error_t list_push_front(LinkedList * lst, Elem_t val);
     Error_t list_delete(LinkedList * lst, size_t elem_id);
     Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coefficient);
     Error_t get_elem_actual_index_by_serial_index(LinkedList * lst,

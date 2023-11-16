@@ -14,22 +14,32 @@ int main(void)
         return errors;
     }
 
-    if (errors = list_insert(&lst, 0, 13))
+    if (errors = list_push_front(&lst, 13))
     {
         return errors;
     }
 
-    if (errors = list_insert(&lst, 1, 133))
+    if (errors = list_push_front(&lst, 133))
     {
         return errors;
     }
 
-    if (errors = list_insert(&lst, 2, 1333))
+    if (errors = list_push_front(&lst, 1333))
     {
         return errors;
     }
 
     if (errors = list_delete(&lst, 3))
+    {
+        return errors;
+    }
+
+    if (errors = list_push_front(&lst, 1333))
+    {
+        return errors;
+    }
+
+    if (errors = list_delete(&lst, 1))
     {
         return errors;
     }

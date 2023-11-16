@@ -242,6 +242,18 @@ Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val)
 }
 
 
+Error_t list_push_front(LinkedList * lst, Elem_t val)
+{
+    MY_ASSERT(lst);
+
+    Error_t errors = 0;
+
+    errors = list_insert(lst, lst->tail, val);
+
+    return errors;
+}
+
+
 Error_t list_delete(LinkedList * lst, size_t elem_id)
 {
     MY_ASSERT(lst);
@@ -253,21 +265,24 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
         return errors;
     }
 
-    if (lst->prev[elem_id] == -1)
+    if (lst->prev[elem_id] == -1 || elem_id == DUMMY_NODE_ID)
     {
         printf("Can't delete free element.\n");
 
         return errors;
     }
 
-    size_t past_free = lst->free;
+    int past_free = lst->free;
+    size_t past_next = lst->next[elem_id];
+    int past_prev = lst->prev[elem_id];
 
     lst->data[elem_id] = TRASH_VALUE;
     lst->free = elem_id;
 
-    lst->next[lst->prev[elem_id]] = lst->next[elem_id];
-    lst->next[elem_id] = past_free;
+    lst->next[past_prev] = past_next;
+    lst->prev[past_next] = past_prev;
 
+    lst->next[elem_id] = past_free;
     lst->prev[elem_id] = -1;
 
     set_list_head(lst, lst->next[DUMMY_NODE_ID]);
