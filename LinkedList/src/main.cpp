@@ -19,29 +19,12 @@ int main(void)
         return errors;
     }
 
-    if (errors = list_push_front(&lst, 133))
+    for (size_t i = 0; i < 40; i++)
     {
-        return errors;
-    }
-
-    if (errors = list_push_front(&lst, 1333))
-    {
-        return errors;
-    }
-
-    if (errors = list_delete(&lst, 3))
-    {
-        return errors;
-    }
-
-    if (errors = list_push_front(&lst, 1333))
-    {
-        return errors;
-    }
-
-    if (errors = list_delete(&lst, 1))
-    {
-        return errors;
+        if (errors = list_push_front(&lst, i))
+        {
+            return errors;
+        }
     }
 
     list_dump(&lst);

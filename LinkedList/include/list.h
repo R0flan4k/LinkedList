@@ -26,6 +26,8 @@
         LIST_ERROR_INVALID_DATA         = 1 << 8,
         LIST_ERROR_INVALID_NEXT         = 1 << 9,
         LIST_ERROR_INVALID_PREV         = 1 << 10,
+        LIST_ERROR_CANT_INSERT_TO_FREE  = 1 << 11,
+        LIST_ERROR_CANT_DELETE_FREE     = 1 << 12,
     };
 
     struct LinkedList {
@@ -46,10 +48,13 @@
                             const int line, const char * file);
     Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val);
     Error_t list_push_front(LinkedList * lst, Elem_t val);
+    #if 0
+        delete front, delete back, push back
+    #endif
     Error_t list_delete(LinkedList * lst, size_t elem_id);
     Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coefficient);
     Error_t get_elem_actual_index_by_serial_index(LinkedList * lst,
-                                                  size_t serial_id,
+                                                  size_t serial_id, ///
                                                   int * actual_id);
 
     extern const char * LIST_DUMP_FILE_NAME;

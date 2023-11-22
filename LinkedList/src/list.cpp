@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 #include "list.h"
 #include "my_assert.h"
@@ -7,7 +8,7 @@
 
 const char * LIST_DUMP_FILE_NAME = "./graphviz/list_dump.dot";
 
-const size_t START_CAPACITY = 8;
+const size_t START_CAPACITY = 32;
 const size_t DUMMY_NODE_ID = 0;
 const size_t TRASH_VALUE = 0xAB1BA5;
 const size_t OUTPUT_BUFFER_SIZE = 512;
@@ -17,6 +18,7 @@ const char * GREEN_COLOR = "#0f9900";
 static Error_t set_list_head(LinkedList * lst, size_t new_head_id);
 static Error_t set_list_tail(LinkedList * lst, size_t new_tail_id);
 static Error_t list_reference_arrays_vtor(LinkedList * lst);
+static void * real_calloc(void * ptr, size_t old_size, size_t new_size);
 
 
 Error_t list_ctor(LinkedList * lst)
@@ -25,7 +27,7 @@ Error_t list_ctor(LinkedList * lst)
 
     Error_t errors = 0;
 
-    if (!list_vtor(lst))
+    if (!list_vtor(lst))            // check if data[], next[] or prev[] are not NULL.
     {
         errors |= LIST_ERROR_ALREADY_CONSTRUCTED;
         return errors;
@@ -35,6 +37,10 @@ Error_t list_ctor(LinkedList * lst)
         !(lst->next = (size_t *) calloc(START_CAPACITY, sizeof(size_t))) ||
         !(lst->prev = (int *) calloc(START_CAPACITY, sizeof(size_t))))
     {
+        free(lst->data);
+        free(lst->prev);
+        free(lst->next);
+
         errors |= LIST_ERROR_CANT_ALLOCATE_MEMORY;
         return errors;
     }
@@ -136,24 +142,23 @@ void list_dump_internal(LinkedList * lst,
     {
         return;
     }
-
-    fprintf(fp, "digraph G\n");
-    fprintf(fp, "{\n");
-    fprintf(fp, "\tgraph [dpi = 100]\n");
-    fprintf(fp, "\tranksep = 0.5;\n");
-    fprintf(fp, "\tbgcolor = \"#ffffff\"\n");
-    fprintf(fp, "\tsplines = ortho\n");
-    fprintf(fp, "\tedge[minlen = 3];\n");
-    fprintf(fp, "\tnode[shape = record, style = \"rounded\", color = \"#f58eb4\",\n");
-    fprintf(fp, "\t	 fixedsize = true, height = 1, width = 2, fontsize = 15];\n");
-    fprintf(fp, "\t{rank = same;\n");
-    fprintf(fp, "\t\telem0 [label = \"{[0] | {prev = %d | next = %zd } }\", color = red];\n",
+///
+    fprintf(fp, "digraph G\n"
+                "{\n"
+                "\tgraph [dpi = 150]\n"
+                "\tranksep = 0.5;\n"
+                "\tbgcolor = \"#ffffff\"\n"
+                "\tsplines = ortho\n"
+                "\tedge[minlen = 3];\n"
+                "\tnode[shape = record, style = \"rounded\", color = \"#f58eb4\",\n"
+                "\t	 fixedsize = true, height = 1, width = 2, fontsize = 15];\n"
+                "\t{rank = same;\n"
+                "\t\telem0 [label = \"{[0] | {prev = %d | next = %zd } }\", color = red];\n",
             lst->prev[DUMMY_NODE_ID], lst->next[DUMMY_NODE_ID]);
 
     for (size_t i = 1; i < lst->capacity; i++)
     {
-        fprintf(fp, "\t\telem%zd [label = \"{[%zd] ",
-                i, i);
+        fprintf(fp, "\t\telem%zd [label = \"{[%zd] ", i, i);
 
         if (lst->data[i] == TRASH_VALUE)
         {
@@ -168,11 +173,11 @@ void list_dump_internal(LinkedList * lst,
                 lst->prev[i], lst->next[i], lst->prev[i] == -1 ? GREEN_COLOR :BLUE_COLOR);
     }
 
-    fprintf(fp, "\t}\n");
-    fprintf(fp, "\t{rank = max;\n");
-    fprintf(fp, "\t\tinfo_node [label = \"%s[%p]\\n from %s, %s:%d\\n\\n | { <h> head = %zd | <t> tail = %zd | free = %d}\", width = 3];\n",
-            lst_name, lst, file, func, line, lst->head, lst->tail, lst->free);
-    fprintf(fp, "\t}\n");
+    fprintf(fp, "\t}\n"
+                "\t{rank = max;\n"
+                "\t\tinfo_node [label = \"%s[%p]\\n from %s, %s:%d\\n\\n | { <h> head = %zd | <t> tail = %zd | free = %d | cap = %zd }\", width = 3];\n"
+                "\t}\n",
+            lst_name, lst, file, func, line, lst->head, lst->tail, lst->free, lst->capacity);
 
     fprintf(fp, "\t");
     for (size_t i = 0; i < lst->capacity - 1; i++)
@@ -188,10 +193,11 @@ void list_dump_internal(LinkedList * lst,
         fprintf(fp, "elem%zd -> ", i);
     }
 
-    fprintf(fp, "elem%zd -> elem%zd [weight = 1, color = red, splines = orthro];\n", lst->tail, DUMMY_NODE_ID);
-    fprintf(fp, "\tinfo_node:<h> -> elem%zd [splines = orthro];\n", lst->head);
-    fprintf(fp, "\tinfo_node:<t> -> elem%zd [splines = orthro];\n", lst->tail);
-    fprintf(fp, "}");
+    fprintf(fp, "elem%zd -> elem%zd [weight = 1, color = red, splines = orthro];\n"
+                "\tinfo_node -> elem%zd [splines = orthro, color = blue];\n"
+                "\tinfo_node -> elem%zd [splines = orthro, color = \"#fc036f\"];\n"
+                "}",
+            lst->tail, DUMMY_NODE_ID, lst->head, lst->tail);
 
     fclose(fp);
 }
@@ -210,21 +216,20 @@ Error_t list_insert(LinkedList * lst, size_t elem_id, Elem_t val)
 
     if (lst->prev[lst->next[lst->free]] != -1)
     {
-        printf("The list is full.\nExpand it if you want to insert new element.\n");
+        list_resize(lst, LIST_RESIZE_EXPAND, 2);
 
         return errors;
     }
 
     if (lst->prev[elem_id] == -1)
     {
-        printf("Can't insert element after free memory location.\n");
+        errors |= LIST_ERROR_CANT_INSERT_TO_FREE;
 
         return errors;
     }
 
     size_t new_val_id = lst->free;
     size_t past_elem_next = lst->next[elem_id];
-
 
     lst->free = lst->next[new_val_id];
     lst->data[new_val_id] = val;
@@ -246,11 +251,7 @@ Error_t list_push_front(LinkedList * lst, Elem_t val)
 {
     MY_ASSERT(lst);
 
-    Error_t errors = 0;
-
-    errors = list_insert(lst, lst->tail, val);
-
-    return errors;
+    return list_insert(lst, lst->tail, val);
 }
 
 
@@ -267,7 +268,7 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
 
     if (lst->prev[elem_id] == -1 || elem_id == DUMMY_NODE_ID)
     {
-        printf("Can't delete free element.\n");
+        errors |= LIST_ERROR_CANT_DELETE_FREE;
 
         return errors;
     }
@@ -292,6 +293,20 @@ Error_t list_delete(LinkedList * lst, size_t elem_id)
 }
 
 
+static void * real_calloc(void * ptr, size_t old_size, size_t new_size)
+{
+    MY_ASSERT(ptr);
+
+    char * mem_ptr = (char *) realloc(ptr, new_size);
+    if (!mem_ptr)
+        return mem_ptr;
+
+    memset(mem_ptr + old_size, 0, new_size - old_size);
+
+    return (void *) mem_ptr;
+}
+
+
 Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coefficient)
 {
     MY_ASSERT(lst);
@@ -308,22 +323,29 @@ Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coeffi
         return errors;
     }
 
-    if (mode == LIST_RESIZE_EXPAND)
+    switch (mode)
     {
-        new_capacity = old_capacity * resize_coefficient;
-    }
-    else // mode == LIST_RESIZE_CONSTRICT
-    {
-        new_capacity = old_capacity / resize_coefficient;
+        case LIST_RESIZE_EXPAND:
+            new_capacity = old_capacity * resize_coefficient;
+            break;
+
+        case LIST_RESIZE_CONSTRICT:
+            new_capacity = old_capacity / resize_coefficient;
+            break;
+
+        default:
+            MY_ASSERT(0 && "UNREACHABLE");
+            break;
     }
 
-    if (!(data_pointer = (Elem_t *) realloc(lst->data,
-                                        new_capacity)) ||
-        !(next_pointer = (size_t *) realloc(lst->next,
-                                        new_capacity)) ||
-        !(prev_pointer = (int *) realloc(lst->prev,
-                                        new_capacity)))
+    if (!(data_pointer = (Elem_t *) real_calloc(lst->data, old_capacity * sizeof(Elem_t), new_capacity * sizeof(Elem_t))) ||
+        !(next_pointer = (size_t *) real_calloc(lst->next, old_capacity * sizeof(size_t), new_capacity * sizeof(size_t))) ||
+        !(prev_pointer = (int *)    real_calloc(lst->prev, old_capacity * sizeof(int),    new_capacity * sizeof(int))))
     {
+        free(lst->data);
+        free(lst->prev);
+        free(lst->next);
+
         errors |= LIST_ERROR_CANT_ALLOCATE_MEMORY;
         return errors;
     }
@@ -333,71 +355,79 @@ Error_t list_resize(LinkedList * lst, ListResizeModes mode, size_t resize_coeffi
     lst->next = next_pointer;
     lst->prev = prev_pointer;
 
-    if (mode == LIST_RESIZE_EXPAND)
+    int i = 0;
+    int last_free = 0;
+    Elem_t last_elem = 0;
+    switch (mode)
     {
-        size_t i = 0;
-        if (lst->free != -1)
-        {
-            for (i = lst->free; lst->prev[lst->next[i]] == -1; i = lst->next[i])
-                continue;
-
-            lst->next[i] = new_capacity - old_capacity;
-        }
-        else
-        {
-            lst->free = new_capacity - old_capacity;
-        }
-
-        for (i = new_capacity - old_capacity; i < new_capacity; i++)
-        {
-            lst->next[i] = i % (new_capacity - 1) + 1;
-            lst->prev[i] = -1;
-        }
-    }
-    else // mode == LIST_RESIZE_CONSTRICT
-    {
-        size_t i = 0;
-        size_t last_free = 0;
-
-        #if 0
-            Proverka na free = -1
-        #endif
-
-        for (i = lst->free; lst->prev[i] == -1; i = lst->next[i])
-        {
-            if (i < new_capacity)
+        case LIST_RESIZE_EXPAND:
+            if (lst->free != -1)
             {
-                lst->free = i;
-                last_free = i;
-                break;
-            }
-        }
+                for (i = lst->free; lst->prev[lst->next[i]] == -1; i = lst->next[i])
+                    continue;
 
-        for (i = lst->free; lst->prev[i] == -1; i = lst->next[i])
-        {
-            if (i < new_capacity)
+                lst->next[i] = new_capacity - old_capacity;
+            }
+            else
             {
-                lst->next[last_free] = i;
-                last_free = i;
+                lst->free = new_capacity - old_capacity;
             }
-        }
 
-        Elem_t last_elem = lst->head;
-
-        for (i = lst->head; i != lst->tail; i = lst->next[i])
-        {
-            if (i < new_capacity)
+            for (size_t j = new_capacity - old_capacity; j < new_capacity; j++)
             {
-                lst->next[last_elem] = i;
-                lst->prev[i] = last_elem;
-                last_elem = i;
+                lst->next[j] = j % (new_capacity - 1) + 1;
+                lst->prev[j] = -1;
             }
-        }
 
-        if (i >= new_capacity)
-        {
-            lst->tail = last_elem;
-        }
+            break;
+
+        case LIST_RESIZE_CONSTRICT:
+
+            #if 0
+                Proverka na free = -1
+            #endif
+
+            for (size_t j = lst->free; lst->prev[j] == -1; j = lst->next[j])
+            {
+                if (j < new_capacity)
+                {
+                    lst->free = j;
+                    last_free = j;
+                    break;
+                }
+            }
+
+            for (size_t j = lst->free; lst->prev[j] == -1; j = lst->next[j])
+            {
+                if (j < new_capacity)
+                {
+                    lst->next[last_free] = j;
+                    last_free = j;
+                }
+            }
+
+            last_elem = lst->head;
+
+            for (i = (int) lst->head; i != (int) lst->tail; i = lst->next[i])
+            {
+                if (i < (int) new_capacity)
+                {
+                    lst->next[last_elem] = i;
+                    lst->prev[i] = last_elem;
+                    last_elem = i;
+                }
+            }
+
+            if (i >= (int) new_capacity)
+            {
+                lst->tail = last_elem;
+            }
+
+            break;
+
+        default:
+            MY_ASSERT(0 && "UNREACHABLE");
+            break;
     }
 
     return errors;
@@ -418,6 +448,7 @@ Error_t get_elem_actual_index_by_serial_index(LinkedList * lst,
         return errors;
     }
 
+    ///
     for (size_t i = lst->next[DUMMY_NODE_ID], j = 0; i != lst->tail; i = lst->next[i], j++)
     {
         if (j == serial_id)
